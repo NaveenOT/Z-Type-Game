@@ -12,10 +12,11 @@ struct Asteroid{
     string word;
     Vector2 pos;
     float speed;
+    vector<int> score;
     bool isTargeted = false;
     Asteroid(string w, Vector2 p, float sp): word(w), pos(p), speed(sp) {}
 };
-typedef enum GameScreen {MENU = 0, GAMEPLAY, ENDING} GameScreen;
+typedef enum GameScreen {MENU = 0, GAMEPLAY,SCORE, ENDING} GameScreen;
 
 int main() {
     Trie trie;
@@ -31,22 +32,28 @@ int main() {
     int score = 0;
     int index = 0;
     int wave;
+    string disp = "Score: "; 
     Vector2 dir = {0, 0};
     string gun = "";
     int asteroidCount = 0;
     float spawnTimer = 0;
-    const float spawnInterval = 1.5;
+    const float spawnInterval = 1.5f;
     vector<Asteroid> asteroids;
+    vector<int> scores;
+    Vector2 mousePos = GetMousePosition();
     SetTargetFPS(60);
     GameScreen currentScreen = MENU;
     Rectangle textBox = {20, 620, 440, 30};
+    Rectangle btnStart = { 150, 140, 200, 40 };
+    Rectangle btnScore = { 150, 200, 200, 40 };
+    Rectangle btnExit  = { 150, 280, 200, 40 };
+    Rectangle btnBackToMenu = { 150, 400, 200, 40  };
     srand(time(0));
     while(!WindowShouldClose()){
+        mousePos = GetMousePosition();
         switch(currentScreen){
             case MENU:
-            if(IsKeyPressed(KEY_ENTER)){
-                currentScreen = GAMEPLAY;
-            }
+
             break;
             case GAMEPLAY:
 
@@ -57,7 +64,8 @@ int main() {
             default: break;
         }
         if(spawnTimer >= spawnInterval)
-        {   
+        {  
+
             spawnTimer = 0;
             index = rand() % 100;
             trie.insert(words[index]);
@@ -78,6 +86,7 @@ int main() {
             if(trie.search(gun)){
                 rotation = atan2f(dir.x, dir.y) * (180/PI);
                 trie.remove(gun);
+                score += 10;
                 for (auto it = asteroids.begin(); it != asteroids.end(); ++it) {
                     if (it->word == gun) {
                         asteroids.erase(it);
@@ -101,11 +110,34 @@ int main() {
         BeginDrawing();
         switch(currentScreen){
             case MENU:
+            spawnTimer = 0;
             DrawRectangle(0, 0, WIDTH, HEIGHT, GRAY);
-            DrawText( "Press Enter To Play", 25, 50, 20, BLACK);
+            DrawText("Main Menu", 320, 40, 30, RED);
+            DrawRectangleRec(btnStart, LIGHTGRAY);
+            DrawText("Start Game", 160, 145,25, BLACK);
+            DrawRectangleRec(btnScore, LIGHTGRAY);
+            DrawText("Score", 160, 205,25, BLACK);
+            DrawRectangleRec(btnExit, LIGHTGRAY);
+            DrawText("Exit", 160, 285,25, RED);
+            if(CheckCollisionPointRec(mousePos, btnStart) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                currentScreen = GAMEPLAY;
+            }
+            
+            if(CheckCollisionPointRec(mousePos, btnScore) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                currentScreen = SCORE;
+            }
+
+            if(CheckCollisionPointRec(mousePos, btnExit) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                currentScreen = ENDING;
+            }
+            //DrawText( "Press Enter To Play", 25, 50, 20, BLACK);
             break;
+
             case GAMEPLAY:
             DrawRectangle(0, 0, WIDTH, HEIGHT, RAYWHITE);
+            
+            DrawText(disp.c_str(),5, 20, 15, BLACK);
+            DrawText(to_string(score).c_str(), 55, 20, 15, BLACK);
             //DrawTextureEx(shooter, {175, 500}, rotation, 0.5f, WHITE);
             DrawTexturePro(shooter,source, dest, origin, rotation, WHITE);
             //DrawRectangle(20, 620, 440, 30, BLACK);
@@ -114,7 +146,7 @@ int main() {
             DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, BLACK);
             //DrawText();
             for(auto &asteroid: asteroids){
-                dir = {175 - asteroid.pos.x, 600 - asteroid.pos.y};
+                dir = {240 - asteroid.pos.x, 550 - asteroid.pos.y};
                 float length = sqrt(dir.x * dir.x + dir.y * dir.y);
                 if (length != 0) {
                     dir.x /= length;
@@ -128,13 +160,33 @@ int main() {
                 }
                 asteroid.pos.x += dir.x * asteroid.speed;
                 asteroid.pos.y += dir.y * asteroid.speed;
+                Rectangle astPos = {asteroid.pos.x, asteroid.pos.y, asteroidImg.width * 0.2f, asteroidImg.height * 0.2f}; 
+                bool collision = CheckCollisionRecs(dest, astPos);
+                if(collision){
+                    DrawText("Collision Detected! ", 100, 100, 50, RED);
+                    scores.push_back(score);
+                    currentScreen = ENDING;
+                }
+                
             }
             break;
+            case SCORE:
+
+            break;
             case ENDING:
+                DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
+                DrawText("Thanks For Playing", 100, 300, 40, WHITE);
+                DrawText("Your Score Is ", 100, 350, 35, WHITE);
+                DrawText(to_string(score).c_str(), 150, 350, 35, WHITE);
+                DrawRectangleRec(btnBackToMenu, LIGHTGRAY);
+                if(CheckCollisionPointRec(mousePos, btnBackToMenu) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                    currentScreen = MENU;
+                }
+
             break;         
             default: break;
         }
-        EndDrawing();
+        EndDrawing(); 
         spawnTimer += GetFrameTime();
     }
     UnloadTexture(shooter);
