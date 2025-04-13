@@ -6,6 +6,7 @@
 #include <string>
 #include <ctime>
 #include <cstdlib>
+#include <fstream>
 #define PI 3.14
 using namespace std;
 struct Asteroid{
@@ -17,7 +18,26 @@ struct Asteroid{
     Asteroid(string w, Vector2 p, float sp): word(w), pos(p), speed(sp) {}
 };
 typedef enum GameScreen {MENU = 0, GAMEPLAY,SCORE, ENDING} GameScreen;
+void appendToFile(int score){
+    std::ofstream outFile("scores.txt", ios::app);
+    if(outFile.is_open()){
+        outFile << score << "\n";
+        outFile.close();
+    }
+}
+vector<int> readFromFile(){
+    vector<int> scores;
+    ifstream inFile("scores.txt");
+    int score;
+    if(inFile.is_open()){
+        while(inFile >> score){
+            scores.push_back(score);
+        }
+        inFile.close();
+    }
+    return scores;
 
+}
 int main() {
     Trie trie;
     const int HEIGHT = 720;
@@ -40,6 +60,7 @@ int main() {
     const float spawnInterval = 1.5f;
     vector<Asteroid> asteroids;
     vector<int> scores;
+    int y_axis;
     Vector2 mousePos = GetMousePosition();
     SetTargetFPS(60);
     GameScreen currentScreen = MENU;
@@ -164,27 +185,37 @@ int main() {
                 bool collision = CheckCollisionRecs(dest, astPos);
                 if(collision){
                     DrawText("Collision Detected! ", 100, 100, 50, RED);
-                    scores.push_back(score);
+                    appendToFile(score);
                     currentScreen = ENDING;
                 }
                 
             }
             break;
             case SCORE:
-
+                scores = readFromFile();
+                DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
+                DrawText("Score List", 120, 30, 45, WHITE);
+                y_axis = 100;
+                for(int i = 0; i < scores.size(); i++){
+                    DrawRectangle(20, y_axis, 440, 60, RAYWHITE);
+                    DrawText(to_string(scores[i]).c_str(), 200, y_axis + 15, 38, BLACK);
+                    y_axis += 75;
+                }
             break;
             case ENDING:
                 DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
-                DrawText("Thanks For Playing", 100, 300, 40, WHITE);
-                DrawText("Your Score Is ", 100, 350, 35, WHITE);
-                DrawText(to_string(score).c_str(), 150, 350, 35, WHITE);
+                DrawText("Thanks For Playing", 20, 300, 40, WHITE);
+                DrawText("Your Score Is ", 80, 350, 35, WHITE);
+                DrawText(to_string(score).c_str(), 350, 350, 35, WHITE);
                 DrawRectangleRec(btnBackToMenu, LIGHTGRAY);
                 if(CheckCollisionPointRec(mousePos, btnBackToMenu) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
                     currentScreen = MENU;
                 }
 
             break;         
-            default: break;
+            default: 
+            
+            break;
         }
         EndDrawing(); 
         spawnTimer += GetFrameTime();
