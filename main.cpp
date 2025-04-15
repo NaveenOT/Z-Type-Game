@@ -63,8 +63,9 @@
         float rotation = 0;
         int score = 0;
         int key;
+        float waveTimer = 0.0f;
         int index = 0;
-        float transparency = 0.0f;
+        float transparency = 1.0f;
         int wave = 1;
         string disp = "Score: "; 
         Vector2 dir = {0, 0};
@@ -76,10 +77,12 @@
         vector<int> scores;
         int y_axis;
         Skew heap;
+        int size;
         float maxSpeed = 1.2;
         float collision_timer = 0.0f;
         Vector2 mousePos = GetMousePosition();
         int waveLimit = 30;
+        bool dispWave = false;
         SetTargetFPS(60);
         GameScreen currentScreen = MENU;
         Rectangle textBox = {20, 620, 440, 30};
@@ -147,17 +150,27 @@
                 maxSpeed+= 0.3f;
                 if(spawnInterval > 0.5f) spawnInterval =  spawnInterval - 0.1f;
                 waveLimit = waveLimit + score;
-                currentScreen = WAVE;
-
+                dispWave = true;
+            }
+            if(dispWave){
+                transparency -= 0.02f;
+            }
+            if(waveTimer <= 2.5f){
+                waveTimer += GetFrameTime();
+            }
+            if(waveTimer > 2.5f){
+                dispWave = false;
+                waveTimer = 0;
+                transparency = 1.0f;
             }
             break;
                 case WAVE:
-                if(spawnTimer >= 2.05f){
-                    currentScreen = GAMEPLAY;
-                }
+                
                 break;
                 case SCORE:
-
+                if(CheckCollisionPointRec(mousePos, {20, y_axis, 440, 60}) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                    currentScreen = MENU;
+                }
                 break;
                 case ENDING:
 
@@ -212,6 +225,7 @@
                         dir.x /= length;
                         dir.y /= length;
                     }
+                    
                     DrawTextureEx(asteroidImg, {asteroid.pos.x - 3, asteroid.pos.y + 5}, 0, 0.2, WHITE);
                     if(asteroid.isTargeted == true){
                         DrawText(asteroid.word.c_str(), asteroid.pos.x, asteroid.pos.y, 25, YELLOW);
@@ -221,7 +235,7 @@
                     asteroid.pos.x += dir.x * asteroid.speed;
                     asteroid.pos.y += dir.y * asteroid.speed;
                     Rectangle astPos = {asteroid.pos.x, asteroid.pos.y, asteroidImg.width * 0.2f, asteroidImg.height * 0.2f}; 
-
+                  
                     bool collision = CheckCollisionRecs(dest, astPos);
                     if (collision) {
                         addScore = true;
@@ -246,23 +260,30 @@
                         currentScreen = ENDING;
                     }
                 }
+                if(dispWave){
+                    DrawText("Wave: ", WIDTH/2 - 90, HEIGHT/2 - 80, 50, Fade(BLACK, transparency));
+                    DrawText(to_string(wave).c_str(), WIDTH/2 + 40, HEIGHT/2 - 80, 50, Fade(BLACK, transparency));
+                }
                 
                 break;
 
                 case SCORE:
                     scores = readFromFile();
-                    for(int i = 0; i < scores.size(); i++){
+                    size = scores.size() % 5;
+                    for(int i = 0; i < size; i++){
                         heap.insert(scores[i]);
                     }
                     DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
-                    DrawText("Score List", 120, 30, 45, WHITE);
+                    DrawText("Score List(5)", 110, 30, 45, WHITE);
                     y_axis = 100;
-                    for(int i = 0; i < scores.size(); i++){
+                    for(int i = 0; i < size; i++){
                         DrawRectangle(20, y_axis, 440, 60, RAYWHITE);
                         DrawText(to_string(heap.findMin()).c_str(), 200, y_axis + 15, 38, BLACK);
                         heap.deleteMin();
                         y_axis += 75;
                     }
+                    DrawRectangle(20, y_axis, 440, 60, RAYWHITE);
+                    DrawText("Back To Menu <-", 120, y_axis + 15, 35, BLACK);
                 break;
                 case WAVE:
                 DrawRectangle(0, 0, WIDTH, HEIGHT, LIGHTGRAY);
