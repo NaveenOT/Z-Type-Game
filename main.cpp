@@ -3,6 +3,7 @@
     #include <math.h>
     #include "tries.h"
     #include "words.h"
+    #include "skew.h"
     #include <string>
     #include <ctime>
     #include <cstdlib>
@@ -74,6 +75,7 @@
         vector<Asteroid> asteroids;
         vector<int> scores;
         int y_axis;
+        Skew heap;
         float maxSpeed = 1.2;
         float collision_timer = 0.0f;
         Vector2 mousePos = GetMousePosition();
@@ -148,11 +150,14 @@
                 currentScreen = WAVE;
 
             }
+            break;
                 case WAVE:
                 if(spawnTimer >= 2.05f){
                     currentScreen = GAMEPLAY;
                 }
                 break;
+                case SCORE:
+
                 break;
                 case ENDING:
 
@@ -219,6 +224,7 @@
 
                     bool collision = CheckCollisionRecs(dest, astPos);
                     if (collision) {
+                        addScore = true;
                         explosions.push_back(asteroid.pos);
                         collision_timer += GetFrameTime();
                         DrawText("Collision Detected! ", 50, 120,  50, RED);
@@ -245,12 +251,16 @@
 
                 case SCORE:
                     scores = readFromFile();
+                    for(int i = 0; i < scores.size(); i++){
+                        heap.insert(scores[i]);
+                    }
                     DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
                     DrawText("Score List", 120, 30, 45, WHITE);
                     y_axis = 100;
                     for(int i = 0; i < scores.size(); i++){
                         DrawRectangle(20, y_axis, 440, 60, RAYWHITE);
-                        DrawText(to_string(scores[i]).c_str(), 200, y_axis + 15, 38, BLACK);
+                        DrawText(to_string(heap.findMin()).c_str(), 200, y_axis + 15, 38, BLACK);
+                        heap.deleteMin();
                         y_axis += 75;
                     }
                 break;
@@ -261,15 +271,16 @@
                 break;
                 case ENDING:
                     SetTargetFPS(60);
+                    if(addScore){
+                        appendToFile(score);
+                       addScore = false;
+                   }
                     DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
                     DrawText("Thanks For Playing", 20, 300, 40, WHITE);
                     DrawText("Your Score Is ", 80, 350, 35, WHITE);
                     DrawText(to_string(score).c_str(), 350, 350, 35, WHITE);
                     DrawRectangleRec(btnBackToMenu, LIGHTGRAY);
-                    if(!addScore){
-                        appendToFile(score);
-                        addScore = true;
-                    }
+                   
                     if(CheckCollisionPointRec(mousePos, btnBackToMenu) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
                         currentScreen = MENU;
                     }
