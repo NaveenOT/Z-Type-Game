@@ -38,6 +38,15 @@ vector<int> readFromFile(){
     return scores;
 
 }
+
+struct Explosion {
+    Vector2 pos;
+    float timer;
+    Explosion(Vector2 p) : pos(p), timer(0.0f) {}
+};
+vector<Explosion> explosions;
+
+
 int main() {
     Trie trie;
     const int HEIGHT = 720;
@@ -51,17 +60,20 @@ int main() {
     float rotation = 0;
     int score = 0;
     int index = 0;
-    int wave;
+    int wave = 1;
     string disp = "Score: "; 
     Vector2 dir = {0, 0};
     string gun = "";
     int asteroidCount = 0;
     float spawnTimer = 0;
-    const float spawnInterval = 1.5f;
+    float spawnInterval = 1.75f;
     vector<Asteroid> asteroids;
     vector<int> scores;
     int y_axis;
+    float maxSpeed = 1.2;
+    float collision_timer = 0.0f;
     Vector2 mousePos = GetMousePosition();
+    int waveLimit = 30;
     SetTargetFPS(60);
     GameScreen currentScreen = MENU;
     Rectangle textBox = {20, 620, 440, 30};
@@ -89,12 +101,15 @@ int main() {
 
             spawnTimer = 0;
             index = rand() % 100;
+            while(trie.search(words[index])){
+                index = rand()%100;
+            }
             trie.insert(words[index]);
-            asteroids.push_back(Asteroid(words[index], {GetRandomValue(30, 400), 100},(float)GetRandomValue(1, 2)));
+            asteroids.push_back(Asteroid(words[index], {GetRandomValue(30, 400), 100},(float)GetRandomValue(1, maxSpeed)));
         }
         int key = GetCharPressed();
         //check if more keys have been pressed in same frame
-        if(IsKeyDown(KEY_BACKSPACE) && !gun.empty()){
+        if(IsKeyPressed(KEY_BACKSPACE) && !gun.empty()){
             gun.pop_back();       
         }
         while(key > 0){
@@ -110,6 +125,7 @@ int main() {
                 score += 10;
                 for (auto it = asteroids.begin(); it != asteroids.end(); ++it) {
                     if (it->word == gun) {
+                        explosions.push_back(Explosion(it->pos));
                         asteroids.erase(it);
                         break;
                     }
@@ -127,7 +143,12 @@ int main() {
                 }
             }
         }
-        
+        if(score >= waveLimit){
+            wave++;
+            maxSpeed+= 0.3f;
+            if(spawnInterval > 0.5f) spawnInterval =  spawnInterval - 0.1f;
+            waveLimit = waveLimit + score;
+        }
         BeginDrawing();
         switch(currentScreen){
             case MENU:
@@ -159,6 +180,8 @@ int main() {
             
             DrawText(disp.c_str(),5, 20, 15, BLACK);
             DrawText(to_string(score).c_str(), 55, 20, 15, BLACK);
+            DrawText("Wave: ", 400, 20, 15, BLACK);
+            DrawText(to_string(wave).c_str(), 455, 20, 15, BLACK);
             //DrawTextureEx(shooter, {175, 500}, rotation, 0.5f, WHITE);
             DrawTexturePro(shooter,source, dest, origin, rotation, WHITE);
             //DrawRectangle(20, 620, 440, 30, BLACK);
@@ -182,15 +205,35 @@ int main() {
                 asteroid.pos.x += dir.x * asteroid.speed;
                 asteroid.pos.y += dir.y * asteroid.speed;
                 Rectangle astPos = {asteroid.pos.x, asteroid.pos.y, asteroidImg.width * 0.2f, asteroidImg.height * 0.2f}; 
+
                 bool collision = CheckCollisionRecs(dest, astPos);
-                if(collision){
-                    DrawText("Collision Detected! ", 100, 100, 50, RED);
+                if (collision) {
+                    explosions.push_back(asteroid.pos);
+                    collision_timer += GetFrameTime();
+                    DrawText("Collision Detected! ", 50, 120,  50, RED);
+                    SetTargetFPS(20);  // Slow motion effect
+                }                 
+            }
+
+            for (int i = 0; i < explosions.size();i++) {
+                Explosion &exp = explosions[i];
+                for(int j = 1; j <= 5; j++){
+                    float alpha = 1.0f - (exp.timer / 1.0f);
+                    if(collision_timer != 0){
+                        DrawCircleV(exp.pos, j * 15, Fade(RED, alpha));
+                    }else DrawCircleV(exp.pos, j * 10, Fade(ORANGE, alpha));
+                }
+                exp.timer += GetFrameTime();
+                if (collision_timer >= 0.1f && collision_timer <= 0.3f) {
+                    DrawRectangle(0, 0, WIDTH, HEIGHT, Fade(BLACK, 0.3f * exp.timer * 10)); // Flash effect
+                }
+                if(collision_timer >= 0.5f){
                     appendToFile(score);
                     currentScreen = ENDING;
                 }
-                
             }
             break;
+
             case SCORE:
                 scores = readFromFile();
                 DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
@@ -203,6 +246,7 @@ int main() {
                 }
             break;
             case ENDING:
+                SetTargetFPS(60);
                 DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
                 DrawText("Thanks For Playing", 20, 300, 40, WHITE);
                 DrawText("Your Score Is ", 80, 350, 35, WHITE);
