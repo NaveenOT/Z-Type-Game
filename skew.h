@@ -51,7 +51,7 @@ class Skew{
 	Node* merge(Node* h1, Node* h2){
 		if(h1 == nullptr) return h2;
 		if(h2 == nullptr) return h1;
-		if(h1->data < h2->data) return merge1(h1, h2);
+		if(h1->data > h2->data) return merge1(h1, h2);
 		else return merge1(h2, h1);
 		
 	}

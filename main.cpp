@@ -1,14 +1,14 @@
-    #include "raylib.h"
-    #include <iostream>
-    #include <math.h>
-    #include "tries.h"
-    #include "words.h"
-    #include "skew.h"
-    #include <string>
-    #include <ctime>
-    #include <cstdlib>
-    #include <fstream>
-    #define PI 3.14
+#include "raylib.h"
+#include <iostream>
+#include <math.h>
+#include "tries.h"
+#include "words.h"
+#include "skew.h"
+#include <string>
+#include <ctime>
+#include <cstdlib>
+#include <fstream>
+#define PI 3.14
     using namespace std;
     struct Asteroid{
         string word;
@@ -264,12 +264,11 @@
                     DrawText("Wave: ", WIDTH/2 - 90, HEIGHT/2 - 80, 50, Fade(BLACK, transparency));
                     DrawText(to_string(wave).c_str(), WIDTH/2 + 40, HEIGHT/2 - 80, 50, Fade(BLACK, transparency));
                 }
-                
                 break;
 
                 case SCORE:
                     scores = readFromFile();
-                    size = scores.size() % 5;
+                    size = scores.size();
                     for(int i = 0; i < size; i++){
                         heap.insert(scores[i]);
                     }
@@ -277,6 +276,7 @@
                     DrawText("Score List(5)", 110, 30, 45, WHITE);
                     y_axis = 100;
                     for(int i = 0; i < size; i++){
+                        if(i >= 5) break;
                         DrawRectangle(20, y_axis, 440, 60, RAYWHITE);
                         DrawText(to_string(heap.findMin()).c_str(), 200, y_axis + 15, 38, BLACK);
                         heap.deleteMin();
