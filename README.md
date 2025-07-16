@@ -27,6 +27,11 @@ A retro-style, wave-based typing shooter game made in **C++** using the [raylib]
 ✅ Menu, Scoreboard, and Game Over screens
 
 ---
+## 🖼️ Screenshots
+
+| Menu                        | Gameplay                         | Scoreboard                      |
+|----------------------------|----------------------------------|---------------------------------|
+| ![Menu](screenshots/menu.png)   | ![Gameplay](screenshots/gameplay.png) | ![Scores](screenshots/score.png)    |
 
 ## 📂 Folder Structure
 
