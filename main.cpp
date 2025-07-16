@@ -8,9 +8,12 @@
 #include <ctime>
 #include <cstdlib>
 #include <fstream>
+
 #define PI 3.14
-    using namespace std;
-    struct Asteroid{
+#define SPACE (Color){ 10, 10, 30, 255 } 
+using namespace std;
+
+struct Asteroid{
         string word;
         Vector2 pos;
         float speed;
@@ -18,6 +21,11 @@
         bool isTargeted = false;
         Asteroid(string w, Vector2 p, float sp): word(w), pos(p), speed(sp) {}
     };
+typedef struct {
+        Vector2 position;
+        float radius;
+        Color color;
+    } Star;
     typedef enum GameScreen {MENU = 0, GAMEPLAY,SCORE,WAVE, ENDING, } GameScreen;
     void appendToFile(int score){
         std::ofstream outFile("scores.txt", ios::app);
@@ -39,17 +47,27 @@
         return scores;
 
     }
-
     struct Explosion {
         Vector2 pos;
         float timer;
         Explosion(Vector2 p) : pos(p), timer(0.0f) {}
     };
     vector<Explosion> explosions;
-
-
+    struct Shoot{
+        Vector2 pos;
+        Vector2 dir;
+        Vector2 astPos;
+        bool destroy;
+        Shoot(Vector2 p, Vector2 d, Vector2 ap): pos(p), dir(d), destroy(true), astPos(ap){}; 
+    };
+    vector<Shoot> bullets;
+    
     int main() {
         Trie trie;
+        InitAudioDevice();
+        Sound explosionSound = LoadSound("soundfx.wav");
+        Music bgMusic = LoadMusicStream("bg.mp3");
+        PlayMusicStream(bgMusic);
         const int HEIGHT = 720;
         const int WIDTH = 480;
         InitWindow(WIDTH, HEIGHT, "Typing Game");
@@ -59,7 +77,6 @@
         Rectangle source = { 0, 0, (float)shooter.width, (float)shooter.height };
         Rectangle dest = { 240, 550, shooter.width * 0.5f, shooter.height * 0.5f };
         Vector2 origin = { dest.width / 2, dest.height / 2 };
-        Color fadeColor;
         float rotation = 0;
         int score = 0;
         int key;
@@ -70,7 +87,6 @@
         string disp = "Score: "; 
         Vector2 dir = {0, 0};
         string gun = "";
-        int asteroidCount = 0;
         float spawnTimer = 0;
         float spawnInterval = 1.75f;
         vector<Asteroid> asteroids;
@@ -86,12 +102,19 @@
         SetTargetFPS(60);
         GameScreen currentScreen = MENU;
         Rectangle textBox = {20, 620, 440, 30};
-        Rectangle btnStart = { 150, 140, 200, 40 };
-        Rectangle btnScore = { 150, 200, 200, 40 };
-        Rectangle btnExit  = { 150, 280, 200, 40 };
-        Rectangle btnBackToMenu = { 150, 400, 200, 40  };
+        Rectangle btnStart = { 95, 160, 300, 60 };
+        Rectangle btnScore = { 95, 240, 300, 60 };
+        Rectangle btnExit  = { 95, 320, 300, 60 };
+        Rectangle btnBackToMenu = { 145, 420, 210, 45  };
+        Star stars[60];
+        for (int i = 0; i < 60; i++) {
+            stars[i].position = { (float)GetRandomValue(0, WIDTH), (float)GetRandomValue(0, HEIGHT) };
+            stars[i].radius = (float)GetRandomValue(1, 3); 
+            stars[i].color = (Color){ 200 + GetRandomValue(-30, 30), 200 + GetRandomValue(-30, 30), 200 + GetRandomValue(-30, 30), 255 };
+        }
         srand(time(0));
         while(!WindowShouldClose()){
+            UpdateMusicStream(bgMusic);
             mousePos = GetMousePosition();
             switch(currentScreen){
                 case MENU:
@@ -127,13 +150,22 @@
                     score += 10;
                     for (auto it = asteroids.begin(); it != asteroids.end(); ++it) {
                         if (it->word == gun) {
+                            PlaySound(explosionSound);
                             explosions.push_back(Explosion(it->pos));
                             asteroids.erase(it);
+                            dir = {it->pos.x - 240, it->pos.y - 550};
+                            float len = sqrt(pow(dir.x, 2) +  pow(dir.y, 2));
+                            dir.x = dir.x / len;
+                            dir.y = dir.y / len;
+                            dir.x *= 10;
+                            dir.y *= 10;
+                            bullets.push_back(Shoot({240, 550},dir, it->pos));
                             break;
                         }
                     }
-                    gun = "";
+                    //gun = "";
                 }    
+                gun = "";
             }
             if(trie.startsWith(gun)){
                 for (auto it = asteroids.begin(); it != asteroids.end(); ++it) {
@@ -182,14 +214,17 @@
             switch(currentScreen){
                 case MENU:
                 spawnTimer = 0;
-                DrawRectangle(0, 0, WIDTH, HEIGHT, GRAY);
-                DrawText("Main Menu", 320, 40, 30, RED);
-                DrawRectangleRec(btnStart, LIGHTGRAY);
-                DrawText("Start Game", 160, 145,25, BLACK);
-                DrawRectangleRec(btnScore, LIGHTGRAY);
-                DrawText("Score", 160, 205,25, BLACK);
-                DrawRectangleRec(btnExit, LIGHTGRAY);
-                DrawText("Exit", 160, 285,25, RED);
+                DrawRectangleGradientV(0, 0, WIDTH, HEIGHT, DARKPURPLE, PURPLE);
+                for(int i = 0; i < 60; i++){
+                    DrawCircleV(stars[i].position, stars[i].radius, stars[i].color);
+                }
+                DrawText("Main Menu", 115, 45, 50, BLACK);
+                DrawRectangleRoundedLinesEx(btnStart,15,10,5, DARKPURPLE);
+                DrawText("Start Game", 150, 175,35, WHITE);
+                DrawRectangleRoundedLinesEx(btnScore,15,10,5, DARKPURPLE);
+                DrawText("Score", 190, 260,35, WHITE);
+                DrawRectangleRoundedLinesEx(btnExit,15,10,5, DARKPURPLE);
+                DrawText("Exit", 200, 335,35, RED);
                 if(CheckCollisionPointRec(mousePos, btnStart) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
                     currentScreen = GAMEPLAY;
                 }
@@ -199,23 +234,26 @@
                 }
 
                 if(CheckCollisionPointRec(mousePos, btnExit) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-                    currentScreen = ENDING;
+                    CloseWindow();
                 }
                 //DrawText( "Press Enter To Play", 25, 50, 20, BLACK);
                 break;
 
                 case GAMEPLAY:
-                DrawRectangle(0, 0, WIDTH, HEIGHT, RAYWHITE);
-                
-                DrawText(disp.c_str(),5, 20, 15, BLACK);
-                DrawText(to_string(score).c_str(), 55, 20, 15, BLACK);
-                DrawText("Wave: ", 400, 20, 15, BLACK);
-                DrawText(to_string(wave).c_str(), 455, 20, 15, BLACK);
+                //DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
+                ClearBackground(SPACE);
+                for(int i = 0; i < 60; i++){
+                    DrawCircleV(stars[i].position, stars[i].radius, stars[i].color);
+                }
+                DrawText(disp.c_str(),5, 20, 15, WHITE);
+                DrawText(to_string(score).c_str(), 55, 20, 20, WHITE);
+                DrawText("Wave: ", 400, 20, 15, WHITE);
+                DrawText(to_string(wave).c_str(), 455, 20, 20, WHITE);
                 //DrawTextureEx(shooter, {175, 500}, rotation, 0.5f, WHITE);
                 DrawTexturePro(shooter,source, dest, origin, rotation, WHITE);
                 //DrawRectangle(20, 620, 440, 30, BLACK);
                 DrawRectangleRec(textBox, LIGHTGRAY);
-                DrawText(gun.c_str(), textBox.x, textBox.y, 25, RAYWHITE);
+                DrawText(gun.c_str(), textBox.x + 10, textBox.y, 25, BLACK);
                 DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, BLACK);
                 //DrawText();
                 for(auto &asteroid: asteroids){
@@ -241,11 +279,20 @@
                         addScore = true;
                         explosions.push_back(asteroid.pos);
                         collision_timer += GetFrameTime();
-                        DrawText("Collision Detected! ", 50, 120,  50, RED);
+                        DrawText("Asteroid Collided! ", 10, 120,  50, RED);
                         SetTargetFPS(20);  // Slow motion effect
                     }                 
                 }
-                
+                for(auto it = bullets.begin(); it != bullets.end(); ++it){
+                    if(it->destroy){
+                        it->pos.x += it->dir.x;
+                        it->pos.y += it->dir.y;
+                        DrawCircle(it->pos.x,it->pos.y, 5, RED);
+                        if(CheckCollisionPointCircle({it->astPos.x, it->astPos.y}, it->pos, 20)){
+                            it->destroy = false;
+                        }
+                    }
+                }
                 for (int i = 0; i < explosions.size();i++) {
                     Explosion &exp = explosions[i];
                     for(int j = 1; j <= 5; j++){
@@ -257,33 +304,40 @@
                     exp.timer += GetFrameTime();
                 
                     if(collision_timer >= 0.5f){
+                        asteroids.clear();
+                        wave = 0;
+                        spawnTimer = 0;
+                        wave = 1;
+                        collision_timer = 0;
+                        maxSpeed = 1.2;
                         currentScreen = ENDING;
+
                     }
                 }
                 if(dispWave){
-                    DrawText("Wave: ", WIDTH/2 - 90, HEIGHT/2 - 80, 50, Fade(BLACK, transparency));
-                    DrawText(to_string(wave).c_str(), WIDTH/2 + 40, HEIGHT/2 - 80, 50, Fade(BLACK, transparency));
+                    DrawText("Wave: ", WIDTH/2 - 90, HEIGHT/2 - 80, 50, Fade(WHITE, transparency));
+                    DrawText(to_string(wave).c_str(), WIDTH/2 + 40, HEIGHT/2 - 80, 50, Fade(WHITE, transparency));
                 }
                 break;
 
                 case SCORE:
+                    DrawRectangleGradientV(0, 0, WIDTH, HEIGHT, DARKBLUE, SKYBLUE);
                     scores = readFromFile();
                     size = scores.size();
                     for(int i = 0; i < size; i++){
                         heap.insert(scores[i]);
                     }
-                    DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
                     DrawText("Score List(5)", 110, 30, 45, WHITE);
                     y_axis = 100;
                     for(int i = 0; i < size; i++){
                         if(i >= 5) break;
-                        DrawRectangle(20, y_axis, 440, 60, RAYWHITE);
+                        DrawRectangleRounded({20, y_axis, 440, 60},15, 10, RAYWHITE);
                         DrawText(to_string(heap.findMin()).c_str(), 200, y_axis + 15, 38, BLACK);
                         heap.deleteMin();
                         y_axis += 75;
                     }
-                    DrawRectangle(20, y_axis, 440, 60, RAYWHITE);
-                    DrawText("Back To Menu <-", 120, y_axis + 15, 35, BLACK);
+                    DrawRectangleRoundedLinesEx({20, y_axis, 440, 60},15, 10, 5, RAYWHITE);
+                    DrawText("Back To Menu <-", 120, y_axis + 15, 35, RAYWHITE);
                 break;
                 case WAVE:
                 DrawRectangle(0, 0, WIDTH, HEIGHT, LIGHTGRAY);
@@ -296,13 +350,14 @@
                         appendToFile(score);
                        addScore = false;
                    }
-                    DrawRectangle(0, 0, WIDTH, HEIGHT, BLACK);
-                    DrawText("Thanks For Playing", 20, 300, 40, WHITE);
+                    DrawRectangle(0, 0, WIDTH, HEIGHT, DARKPURPLE);
+                    DrawText("Thanks For Playing", 25, 275, 40, WHITE);
                     DrawText("Your Score Is ", 80, 350, 35, WHITE);
                     DrawText(to_string(score).c_str(), 350, 350, 35, WHITE);
-                    DrawRectangleRec(btnBackToMenu, LIGHTGRAY);
-                   
+                    DrawRectangleRounded(btnBackToMenu,15, 5, WHITE);
+                    DrawText("Back to Menu", btnBackToMenu.x + 20, btnBackToMenu.y + 10, 25, BLACK);
                     if(CheckCollisionPointRec(mousePos, btnBackToMenu) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                        score = 0;
                         currentScreen = MENU;
                     }
 
@@ -311,9 +366,12 @@
                 
                 break;
             }
-            EndDrawing(); 
+            EndDrawing();
             spawnTimer += GetFrameTime();
         }
+        UnloadSound(explosionSound);
+        UnloadMusicStream(bgMusic);
+        CloseAudioDevice();
         UnloadTexture(shooter);
         CloseWindow();
         return 0;
